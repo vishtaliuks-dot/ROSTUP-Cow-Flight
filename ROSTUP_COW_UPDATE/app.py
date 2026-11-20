@@ -272,9 +272,18 @@ async def cow_start(body: ArcadeStartRequest, request: Request):
     user = await current_user(request)
     rid = uuid.uuid4().hex
     now = time.time()
-    # Crash timing and multiplier are generated on the server. Points are virtual only.
-    crash_after = round(COW_CRASH_MIN_SECONDS + (uuid.uuid4().int / (2**128 - 1)) * (COW_CRASH_MAX_SECONDS - COW_CRASH_MIN_SECONDS), 2)
-    state = {'crash_after': crash_after, 'started_at': now}
+    # Each round rolls independently: 88% low crash (1.10x-1.12x),
+    # 10% reaches 2.00x, and 2% reaches 5.00x. Repeats are possible.
+    import random
+    roll = random.random()
+    if roll < 0.02:
+        crash_multiplier = 5.00
+    elif roll < 0.12:
+        crash_multiplier = 2.00
+    else:
+        crash_multiplier = round(random.uniform(1.10, 1.12), 2)
+    crash_after = round((crash_multiplier - 1.0) / 0.22, 4)
+    state = {'crash_after': crash_after, 'crash_multiplier': crash_multiplier, 'started_at': now}
     with db() as c:
         c.execute('BEGIN IMMEDIATE')
         active = c.execute("SELECT id FROM arcade_rounds WHERE telegram_id=? AND status='active'", (user['id'],)).fetchone()
