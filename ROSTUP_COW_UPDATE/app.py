@@ -49,6 +49,10 @@ def init_db():
           amount INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
           created_at INTEGER NOT NULL, charge_id TEXT UNIQUE
         );
+        CREATE TABLE IF NOT EXISTS star_payments (
+          payload TEXT PRIMARY KEY, telegram_id INTEGER NOT NULL, amount INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, charge_id TEXT UNIQUE
+        );
         CREATE TABLE IF NOT EXISTS arcade_rounds (
           id TEXT PRIMARY KEY, telegram_id INTEGER NOT NULL, game TEXT NOT NULL,
           stake INTEGER NOT NULL, state_json TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
@@ -127,6 +131,84 @@ async def telegram(method: str, payload: dict):
         raise HTTPException(502, data.get('description', 'Ошибка Telegram Bot API'))
     return data['result']
 
+WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET', '').strip() or hashlib.sha256(BOT_TOKEN.encode()).hexdigest()
+
+@app.on_event('startup')
+async def register_telegram_webhook():
+    if BOT_TOKEN and PUBLIC_URL:
+        try:
+            await telegram('setWebhook', {
+                'url': f'{PUBLIC_URL}/telegram/webhook',
+                'secret_token': WEBHOOK_SECRET,
+                'allowed_updates': ['message', 'pre_checkout_query']
+            })
+        except Exception as exc:
+            print(f'Telegram webhook setup failed: {exc}')
+
+
+
+class StarTopupRequest(BaseModel):
+    amount: int
+
+@app.post('/api/payments/stars/invoice')
+async def create_stars_invoice(body: StarTopupRequest, request: Request):
+    user = await current_user(request)
+    if body.amount not in {10, 25, 50, 100, 250, 500, 1000}:
+        raise HTTPException(400, 'Выбери один из доступных пакетов пополнения')
+    payload = f"topup:{user['id']}:{body.amount}:{uuid.uuid4().hex}"
+    with db() as c:
+        c.execute('INSERT INTO star_payments(payload,telegram_id,amount,created_at) VALUES(?,?,?,?)',
+                  (payload, user['id'], body.amount, int(time.time())))
+    link = await telegram('createInvoiceLink', {
+        'title': f'Пополнение {body.amount} очков',
+        'description': f'{body.amount} Telegram Stars = {body.amount} игровых очков ROSTUP',
+        'payload': payload,
+        'provider_token': '',
+        'currency': 'XTR',
+        'prices': [{'label': f'{body.amount} игровых очков', 'amount': body.amount}],
+        'start_parameter': f'rostup_{uuid.uuid4().hex[:12]}'
+    })
+    return {'invoice_link': link, 'stars': body.amount, 'points': body.amount}
+
+@app.post('/telegram/webhook')
+async def telegram_webhook(request: Request, secret_token: Optional[str] = Header(default=None, alias='X-Telegram-Bot-Api-Secret-Token')):
+    if not WEBHOOK_SECRET or not hmac.compare_digest(secret_token or '', WEBHOOK_SECRET):
+        raise HTTPException(403, 'Forbidden')
+    update = await request.json()
+    pre = update.get('pre_checkout_query')
+    if pre:
+        payload = pre.get('invoice_payload', '')
+        with db() as c:
+            row = c.execute('SELECT telegram_id,amount,status FROM star_payments WHERE payload=?', (payload,)).fetchone()
+        valid = bool(row and row['status'] == 'pending'
+                     and row['telegram_id'] == pre.get('from', {}).get('id')
+                     and pre.get('currency') == 'XTR'
+                     and pre.get('total_amount') == row['amount'])
+        answer = {'pre_checkout_query_id': pre['id'], 'ok': valid}
+        if not valid:
+            answer['error_message'] = 'Счёт недействителен или уже обработан. Создай новый.'
+        await telegram('answerPreCheckoutQuery', answer)
+        return {'ok': True}
+    message = update.get('message') or update.get('edited_message') or {}
+    payment = message.get('successful_payment')
+    if payment:
+        payload = payment.get('invoice_payload', '')
+        uid = int(message.get('from', {}).get('id', 0))
+        charge_id = payment.get('telegram_payment_charge_id', '')
+        amount = int(payment.get('total_amount', 0))
+        if payment.get('currency') != 'XTR' or not charge_id:
+            return {'ok': True}
+        with db() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = c.execute('SELECT telegram_id,amount,status FROM star_payments WHERE payload=?', (payload,)).fetchone()
+            if row and row['telegram_id'] == uid and row['amount'] == amount and row['status'] == 'pending':
+                c.execute('INSERT OR IGNORE INTO users(telegram_id,username,first_name,points,created_at) VALUES(?,?,?,?,?)',
+                          (uid, message.get('from', {}).get('username'), message.get('from', {}).get('first_name', 'Игрок'), 250, int(time.time())))
+                c.execute('UPDATE users SET points=points+? WHERE telegram_id=?', (amount, uid))
+                c.execute('UPDATE star_payments SET status=?,charge_id=? WHERE payload=?',
+                          ('paid', charge_id, payload))
+        return {'ok': True}
+    return {'ok': True}
 
 class BetRequest(BaseModel):
     stake: int = Field(ge=10, le=1000)
