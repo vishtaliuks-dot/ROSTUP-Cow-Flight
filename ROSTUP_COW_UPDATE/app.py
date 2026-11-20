@@ -282,13 +282,15 @@ async def cow_start(body: ArcadeStartRequest, request: Request):
     user = await current_user(request)
     rid = uuid.uuid4().hex
     now = time.time()
-    # Each round rolls independently: 88% low crash (1.10x-1.12x),
-    # 10% reaches 2.00x, and 2% reaches 5.00x. Repeats are possible.
+    # Independent odds per round: 30% crash before 1.10x;
+    # 5% reaches 3.00x; 1/7 reaches 2.00x; the rest reach 1.10x-1.40x.
     import random
     roll = random.random()
-    if roll < (1 / 20):
+    if roll < 0.30:
+        crash_multiplier = round(random.uniform(1.01, 1.09), 2)
+    elif roll < 0.35:
         crash_multiplier = 3.00
-    elif roll < (1 / 20 + 1 / 7):
+    elif roll < (0.35 + 1 / 7):
         crash_multiplier = 2.00
     else:
         crash_multiplier = round(random.uniform(1.10, 1.40), 2)
@@ -420,11 +422,16 @@ async def redeem_promo(body: PromoRequest, request: Request):
 
 @app.post('/api/bonus/subscribe')
 async def subscription_bonus(request: Request):
-    user=await current_user(request); channel=os.getenv('CHANNEL_USERNAME','@RostUpOnline').strip()
-    if not channel: raise HTTPException(503,'Администратор ещё не указал CHANNEL_USERNAME в Render')
-    member=await telegram('getChatMember',{'chat_id':channel,'user_id':user['id']})
+    user=await current_user(request)
+    # Use the channel username fixed in the app so a stale Render variable
+    # cannot silently point the check at a different channel.
+    channel='@RostUpOnline'
+    try:
+        member=await telegram('getChatMember',{'chat_id':channel,'user_id':user['id']})
+    except HTTPException as exc:
+        raise HTTPException(exc.status_code, 'Не удалось проверить @RostUpOnline: '+str(exc.detail)+'. Проверь BOT_TOKEN и права бота-администратора канала.')
     if not (member.get('status') in ('member','administrator','creator') or (member.get('status') == 'restricted' and member.get('is_member') is True)):
-        raise HTTPException(403,'Сначала подпишись на канал @RostUpOnline, затем нажми «Проверить подписку».')
+        raise HTTPException(403,'Telegram пока не видит твою подписку на @RostUpOnline. Подпишись, подожди несколько секунд и проверь снова.')
     with db() as c:
         c.execute('BEGIN IMMEDIATE')
         try: c.execute('INSERT INTO promo_redemptions(telegram_id,code,redeemed_at) VALUES(?,?,?)',(user['id'],'SUBSCRIBE_CHANNEL',int(time.time())))
