@@ -21,8 +21,17 @@ app = FastAPI(title='ROSTUP Cow Flight API', version='3.0.0')
 app.mount('/static', StaticFiles(directory=BASE / 'static'), name='static')
 
 PRODUCTS = {}  # В версии COW FLIGHT магазин отключён.
-COW_CRASH_MIN_SECONDS = max(2.0, float(os.getenv('COW_CRASH_MIN_SECONDS', '3.0')))
-COW_CRASH_MAX_SECONDS = max(COW_CRASH_MIN_SECONDS + 1.0, float(os.getenv('COW_CRASH_MAX_SECONDS', '12.0')))
+def env_float(name: str, default: float) -> float:
+    # Render may keep an environment variable with an empty value; use the default then.
+    raw = os.getenv(name, '').strip()
+    try:
+        return float(raw) if raw else default
+    except (TypeError, ValueError):
+        return default
+
+
+COW_CRASH_MIN_SECONDS = max(2.0, env_float('COW_CRASH_MIN_SECONDS', 3.0))
+COW_CRASH_MAX_SECONDS = max(COW_CRASH_MIN_SECONDS + 1.0, env_float('COW_CRASH_MAX_SECONDS', 12.0))
 ALLOWED_BETS = {10, 25, 50, 100, 250, 500, 1000}
 COW_MULTIPLIER_RATE = 0.08
 
