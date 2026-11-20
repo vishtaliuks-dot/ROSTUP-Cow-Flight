@@ -282,7 +282,7 @@ async def cow_start(body: ArcadeStartRequest, request: Request):
     elif roll < 0.12:
         crash_multiplier = 2.00
     else:
-        crash_multiplier = round(random.uniform(1.10, 1.12), 2)
+        crash_multiplier = random.choice([1.10, 1.11, 1.12, 1.13])
     crash_after = round((crash_multiplier - 1.0) / COW_MULTIPLIER_RATE, 4)
     state = {'crash_after': crash_after, 'crash_multiplier': crash_multiplier, 'started_at': now}
     with db() as c:
@@ -360,9 +360,9 @@ async def economy_status(request: Request):
 
 # Weighted prizes are virtual game points. Each table totals exactly 100%.
 CASE_CONFIG = {
- 'bronze': (10, [(2,30),(5,30),(8,20),(10,15),(30,2),(50,1),(60,.7),(70,.5),(80,.3),(90,.25),(100,.25)]),
- 'silver': (20, [(5,20),(10,20),(20,20),(40,15),(60,10),(100,8),(150,5),(200,2)]),
- 'diamond': (50, [(10,20),(20,20),(50,20),(100,15),(150,10),(250,7),(500,5),(1000,3)])
+ 'bronze': (10, [(2,35),(5,30),(8,20),(10,10),(20,3),(50,2)]),
+ 'silver': (20, [(5,35),(10,30),(15,15),(20,10),(40,6),(100,3),(200,1)]),
+ 'diamond': (50, [(5,30),(10,25),(20,20),(30,10),(50,8),(100,4),(250,2),(500,1)])
 }
 
 def weighted_prize(entries):
