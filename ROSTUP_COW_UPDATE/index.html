@@ -18,7 +18,7 @@
 .economy-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .balance-panel{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0;padding:18px 20px;border-radius:18px;background:linear-gradient(110deg,#26395f,#493b70,#26395f);border:1px solid #ffd76b66;box-shadow:0 0 28px #7e72ff30,inset 0 1px #ffffff30}
 .balance-panel strong{font-size:clamp(25px,5vw,38px);color:#ffe18a;text-shadow:0 0 20px #ffc94f77}
-.economy-tabs{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:18px 0}
+.economy-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:18px 0}
 .economy-tab{padding:14px;border-radius:14px;background:#18233e;border:1px solid #ffffff20;color:#bfcaf0;transition:.2s}
 .economy-tab.active{background:linear-gradient(110deg,#526bdf,#7651d5);color:white;box-shadow:0 8px 25px #5d63ff55;transform:translateY(-2px)}
 .case-section-title{font-size:clamp(22px,4vw,30px);margin:18px 0 6px;font-weight:1000}
@@ -66,7 +66,20 @@
  <div class="economy-shell">
   <div class="economy-head"><h2 style="margin:0;font-size:clamp(20px,4vw,28px)">💎 ИГРОВОЙ ЦЕНТР</h2><button class="secondary" id="closeEconomy">ЗАКРЫТЬ ✕</button></div>
   <div class="balance-panel"><div><div style="font-size:12px;color:#d4dcff;font-weight:800;letter-spacing:1px">ТВОЙ БАЛАНС</div><strong><span id="modalBalance">250</span> ✦</strong></div><div style="font-size:12px;color:#d4dcff">Нажимай на кейсы и забирай награды</div></div>
-  <div class="economy-tabs"><button class="economy-tab active" id="showCases">📦 КЕЙСЫ</button><button class="economy-tab" id="showBonuses">🎁 БОНУСЫ</button></div>
+  <div class="economy-tabs"><button class="economy-tab active" id="showCases">📦 КЕЙСЫ</button><button class="economy-tab" id="showTopup">⭐ ПОПОЛНИТЬ</button><button class="economy-tab" id="showBonuses">🎁 БОНУСЫ</button></div>
+  <section class="economy-pane" id="topupPane">
+   <div class="case-section-title">⭐ ПОПОЛНЕНИЕ БАЛАНСА</div>
+   <p class="case-section-sub">Оплата проходит в Telegram Stars. 1 ⭐ = 1 игровое очко. Баланс пополнится после подтверждения Telegram.</p>
+   <div class="case-grid">
+    <article class="case-card silver"><div><div class="case-icon">⭐</div><div class="case-name">10 ЗВЁЗД</div><p class="case-desc">Получишь 10 игровых очков</p></div><button class="primary topup-btn" data-amount="10">ПОПОЛНИТЬ ЗА 10 ⭐</button></article>
+    <article class="case-card silver"><div><div class="case-icon">⭐</div><div class="case-name">25 ЗВЁЗД</div><p class="case-desc">Получишь 25 игровых очков</p></div><button class="primary topup-btn" data-amount="25">ПОПОЛНИТЬ ЗА 25 ⭐</button></article>
+    <article class="case-card bronze"><div><div class="case-icon">🌟</div><div class="case-name">50 ЗВЁЗД</div><p class="case-desc">Получишь 50 игровых очков</p></div><button class="primary topup-btn" data-amount="50">ПОПОЛНИТЬ ЗА 50 ⭐</button></article>
+    <article class="case-card bronze"><div><div class="case-icon">🌟</div><div class="case-name">100 ЗВЁЗД</div><p class="case-desc">Получишь 100 игровых очков</p></div><button class="primary topup-btn" data-amount="100">ПОПОЛНИТЬ ЗА 100 ⭐</button></article>
+    <article class="case-card diamond"><div><div class="case-icon">💎</div><div class="case-name">250 ЗВЁЗД</div><p class="case-desc">Получишь 250 игровых очков</p></div><button class="primary topup-btn" data-amount="250">ПОПОЛНИТЬ ЗА 250 ⭐</button></article>
+    <article class="case-card diamond"><div><div class="case-icon">💎</div><div class="case-name">500 ЗВЁЗД</div><p class="case-desc">Получишь 500 игровых очков</p></div><button class="primary topup-btn" data-amount="500">ПОПОЛНИТЬ ЗА 500 ⭐</button></article>
+    <article class="case-card diamond" style="grid-column:1/-1"><div><div class="case-icon">👑</div><div class="case-name">1000 ЗВЁЗД</div><p class="case-desc">Получишь 1000 игровых очков</p></div><button class="primary topup-btn" data-amount="1000">ПОПОЛНИТЬ ЗА 1000 ⭐</button></article>
+   </div>
+  </section>
   <section class="economy-pane active" id="casesPane">
    <div class="case-section-title">📦 КЕЙСЫ</div><p class="case-section-sub">Выбери кейс. Открытие сопровождается анимацией, а награда появится на экране.</p>
    <div class="case-grid">
@@ -104,7 +117,10 @@ function economyMsg(t){$('economyMessage').textContent=t}
 $('openEconomy').onclick=()=>{$('economyModal').style.display='block';$('modalBalance').textContent=fmt(points);$('economyModal').scrollTop=0};
 $('closeEconomy').onclick=()=>{$('economyModal').style.display='none'};
 $('showCases').onclick=()=>{ $('casesPane').classList.add('active');$('bonusesPane').classList.remove('active');$('showCases').classList.add('active');$('showBonuses').classList.remove('active') };
-$('showBonuses').onclick=()=>{ $('bonusesPane').classList.add('active');$('casesPane').classList.remove('active');$('showBonuses').classList.add('active');$('showCases').classList.remove('active') };
+function selectEconomyPane(which){for(const id of ['cases','topup','bonuses']){$(id+'Pane').classList.toggle('active',id===which);$('show'+id[0].toUpperCase()+id.slice(1)).classList.toggle('active',id===which)}}
+$('showCases').onclick=()=>selectEconomyPane('cases');
+$('showTopup').onclick=()=>selectEconomyPane('topup');
+$('showBonuses').onclick=()=>selectEconomyPane('bonuses');
 $('openEconomy').addEventListener('click',()=>{$('openEconomy').classList.add('pressed');setTimeout(()=>$('openEconomy').classList.remove('pressed'),260)});
 async function economyAction(path,body){if(demo)throw Error('Эта функция проверяется только внутри Telegram Mini App. Открой игру через Telegram.');return await api(path,body)}
 // Browser preview: case buttons remain testable outside Telegram. These demo rewards
@@ -120,6 +136,34 @@ $('revealClose').onclick=()=>{$('caseReveal').className='case-reveal';revealBusy
 async function openCaseRequest(path,body,icon,label){if(revealBusy)return;revealBusy=true;revealStart(icon);try{let d;if(demo){await new Promise(r=>setTimeout(r,180));d=demoCaseResult(path,body);if(path.endsWith('/daily'))showBalance(points+d.reward)}else{d=await economyAction(path,body);showBalance(d.balance)}const frames=['🎁','✨','💫','🎊','💎','⭐'];let i=0;const spin=setInterval(()=>{$('revealBox').textContent=frames[i++%frames.length];$('revealRolling').textContent=['ИЩЕМ НАГРАДУ...','ЕЩЁ МОМЕНТ...','ПОЧТИ ГОТОВО...'][i%3]},120);await new Promise(r=>setTimeout(r,1700));clearInterval(spin);$('revealBox').textContent=icon;revealFinish(d.reward,label+' · награда зачислена');economyMsg((demo?'ДЕМО: ':'')+'Награда добавлена на баланс: +'+fmt(d.reward)+' очков.')}catch(e){$('caseReveal').className='case-reveal';revealBusy=false;economyMsg(e.message)}}
 $('dailyCaseBtn').onclick=()=>openCaseRequest('/api/cases/daily',{},'🎁','Ежедневный кейс');
 document.querySelectorAll('.caseOpen').forEach(b=>b.onclick=()=>openCaseRequest('/api/cases/open',{case_id:b.dataset.case},b.dataset.case==='bronze'?'📦':b.dataset.case==='silver'?'🧰':'💎',b.dataset.case.toUpperCase()+' CASE'));
+
+async function buyStars(amount,button){
+  try{
+    if(demo) throw Error('Для оплаты открой ROSTUP через Telegram-бота, не в обычном браузере.');
+    if(!tg?.openInvoice) throw Error('Открой игру внутри Telegram, чтобы оплатить Stars.');
+    button.disabled=true;
+    economyMsg('Создаём счёт Telegram Stars...');
+    const invoice=await api('/api/payments/stars/invoice',{amount});
+    tg.openInvoice(invoice.invoice_link,async status=>{
+      button.disabled=false;
+      if(status==='paid'){
+        economyMsg('Оплата подтверждена Telegram. Обновляем баланс...');
+        await new Promise(resolve=>setTimeout(resolve,700));
+        await syncMe();
+        economyMsg('Оплата прошла! На баланс зачислено '+amount+' игровых очков.');
+      }else if(status==='cancelled'){
+        economyMsg('Оплата отменена. Баланс не изменён.');
+      }else if(status==='failed'){
+        economyMsg('Telegram не завершил оплату. Баланс не изменён.');
+      }else{
+        economyMsg('Платёж ещё обрабатывается. Баланс обновится после подтверждения Telegram.');
+        setTimeout(syncMe,1800);
+      }
+    });
+  }catch(e){button.disabled=false;economyMsg(e.message)}
+}
+document.querySelectorAll('.topup-btn').forEach(button=>button.addEventListener('click',()=>buyStars(Number(button.dataset.amount),button)));
+
 $('promoBtn').onclick=async()=>{try{const d=await economyAction('/api/promo/redeem',{code:$('promoInput').value});showBalance(d.balance);economyMsg('Бонус активирован: +'+d.reward+' очков.');$('promoInput').value=''}catch(e){economyMsg(e.message)}};
 $('subscribeBonusBtn').onclick=async()=>{try{const d=await economyAction('/api/bonus/subscribe',{});showBalance(d.balance);economyMsg('Подписка подтверждена! +'+d.reward+' очка.')}catch(e){economyMsg(demo?'Открой Mini App через Telegram, подпишись на @RostUpOnline и нажми проверку. В браузерном демо подписка не проверяется.':e.message)}};
 $('withdrawBtn').onclick=async()=>{try{const amount=Math.floor(Number($('withdrawAmount').value));const d=await economyAction('/api/withdraw/request',{amount});economyMsg('Заявка '+d.request_id+' создана на '+d.amount+' очков. Теперь напиши @Operator_Aslan.')}catch(e){economyMsg(e.message)}};
