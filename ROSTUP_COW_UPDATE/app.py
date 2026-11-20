@@ -37,7 +37,7 @@ def init_db():
         c.executescript('''
         CREATE TABLE IF NOT EXISTS users (
           telegram_id INTEGER PRIMARY KEY, username TEXT, first_name TEXT,
-          points INTEGER NOT NULL DEFAULT 250, tower_level INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
+          points INTEGER NOT NULL DEFAULT 10, tower_level INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS rounds (
           id TEXT PRIMARY KEY, telegram_id INTEGER NOT NULL, stake INTEGER NOT NULL,
@@ -79,6 +79,10 @@ def init_db():
         );
         ''')
         # Migrate databases created by the previous ROSTUP build.
+        c.execute('CREATE TABLE IF NOT EXISTS app_migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)')
+        if not c.execute('SELECT 1 FROM app_migrations WHERE name=?', ('starting_balance_10',)).fetchone():
+            c.execute('UPDATE users SET points=10 WHERE points=250')
+            c.execute('INSERT INTO app_migrations(name,applied_at) VALUES(?,?)', ('starting_balance_10', int(time.time())))
         columns = [r['name'] for r in c.execute('PRAGMA table_info(users)').fetchall()]
         if 'tower_level' not in columns:
             c.execute('ALTER TABLE users ADD COLUMN tower_level INTEGER NOT NULL DEFAULT 0')
@@ -115,7 +119,7 @@ async def current_user(request: Request):
     data = verify_init_data(request.headers.get('X-Telegram-Init-Data', ''))
     with db() as c:
         c.execute('INSERT OR IGNORE INTO users(telegram_id, username, first_name, points, created_at) VALUES(?,?,?,?,?)',
-                  (data['id'], data['username'], data['first_name'], 250, int(time.time())))
+                  (data['id'], data['username'], data['first_name'], 10, int(time.time())))
         c.execute('UPDATE users SET username=?, first_name=? WHERE telegram_id=?',
                   (data['username'], data['first_name'], data['id']))
     return data
@@ -166,7 +170,6 @@ async def create_stars_invoice(body: StarTopupRequest, request: Request):
         'provider_token': '',
         'currency': 'XTR',
         'prices': [{'label': f'{body.amount} игровых очков', 'amount': body.amount}],
-        'start_parameter': f'rostup_{uuid.uuid4().hex[:12]}'
     })
     return {'invoice_link': link, 'stars': body.amount, 'points': body.amount}
 
@@ -224,7 +227,7 @@ async def telegram_webhook(request: Request, secret_token: Optional[str] = Heade
             row = c.execute('SELECT telegram_id,amount,status FROM star_payments WHERE payload=?', (payload,)).fetchone()
             if row and row['telegram_id'] == uid and row['amount'] == amount and row['status'] == 'pending':
                 c.execute('INSERT OR IGNORE INTO users(telegram_id,username,first_name,points,created_at) VALUES(?,?,?,?,?)',
-                          (uid, message.get('from', {}).get('username'), message.get('from', {}).get('first_name', 'Игрок'), 250, int(time.time())))
+                          (uid, message.get('from', {}).get('username'), message.get('from', {}).get('first_name', 'Игрок'), 10, int(time.time())))
                 c.execute('UPDATE users SET points=points+? WHERE telegram_id=?', (amount, uid))
                 c.execute('UPDATE star_payments SET status=?,charge_id=? WHERE payload=?',
                           ('paid', charge_id, payload))
