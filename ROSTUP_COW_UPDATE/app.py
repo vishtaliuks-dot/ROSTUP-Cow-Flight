@@ -24,6 +24,7 @@ PRODUCTS = {}  # В версии COW FLIGHT магазин отключён.
 COW_CRASH_MIN_SECONDS = max(2.0, float(os.getenv('COW_CRASH_MIN_SECONDS', '3.0')))
 COW_CRASH_MAX_SECONDS = max(COW_CRASH_MIN_SECONDS + 1.0, float(os.getenv('COW_CRASH_MAX_SECONDS', '12.0')))
 ALLOWED_BETS = {10, 25, 50, 100, 250, 500, 1000}
+COW_MULTIPLIER_RATE = 0.08
 
 
 def db():
@@ -282,7 +283,7 @@ async def cow_start(body: ArcadeStartRequest, request: Request):
         crash_multiplier = 2.00
     else:
         crash_multiplier = round(random.uniform(1.10, 1.12), 2)
-    crash_after = round((crash_multiplier - 1.0) / 0.22, 4)
+    crash_after = round((crash_multiplier - 1.0) / COW_MULTIPLIER_RATE, 4)
     state = {'crash_after': crash_after, 'crash_multiplier': crash_multiplier, 'started_at': now}
     with db() as c:
         c.execute('BEGIN IMMEDIATE')
@@ -294,7 +295,7 @@ async def cow_start(body: ArcadeStartRequest, request: Request):
         c.execute('UPDATE users SET points=points-? WHERE telegram_id=?', (body.stake, user['id']))
         c.execute('INSERT INTO arcade_rounds(id,telegram_id,game,stake,state_json,status,created_at) VALUES(?,?,?,?,?,?,?)',
                   (rid,user['id'],'cow',body.stake,json.dumps(state),'active',now))
-    return {'round_id':rid,'stake':body.stake,'started_at':now,'crash_after':crash_after,'balance':row['points']-body.stake}
+    return {'round_id':rid,'stake':body.stake,'started_at':now,'crash_after':crash_after,'multiplier_rate':COW_MULTIPLIER_RATE,'balance':row['points']-body.stake}
 
 
 @app.post('/api/cow/crash')
@@ -326,7 +327,7 @@ async def cow_cashout(body: ArcadeActionRequest, request: Request):
         if elapsed >= st['crash_after']:
             payout=0; result='crash'
         else:
-            mult = min(12.0, 1.0 + elapsed*0.22)
+            mult = min(12.0, 1.0 + elapsed*COW_MULTIPLIER_RATE)
             payout = int(rnd['stake']*mult); result='cashout'
             c.execute('UPDATE users SET points=points+? WHERE telegram_id=?',(payout,user['id']))
         c.execute("UPDATE arcade_rounds SET status='finished',state_json=?,finished_at=? WHERE id=?",
