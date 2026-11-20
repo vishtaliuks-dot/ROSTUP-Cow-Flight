@@ -122,7 +122,7 @@ $('openEconomy').onclick=()=>{$('economyModal').style.display='block';$('modalBa
 $('navCow').onclick=()=>{$('cow').style.display='';$('casesPage').classList.remove('active');$('navCow').classList.add('active');$('navCases').classList.remove('active')};
 $('navCases').onclick=()=>{$('cow').style.display='none';$('casesPage').classList.add('active');$('navCases').classList.add('active');$('navCow').classList.remove('active');$('casesBalance').textContent=fmt(points);window.scrollTo({top:0,behavior:'smooth'})};
 $('closeEconomy').onclick=()=>{$('economyModal').style.display='none'};
-$('showCases').onclick=()=>{ $('casesPane').classList.add('active');$('bonusesPane').classList.remove('active');$('showCases').classList.add('active');$('showBonuses').classList.remove('active') };
+// Кейсы вынесены в отдельную страницу; старой кнопки showCases больше нет.
 function selectEconomyPane(which){for(const id of ['topup','bonuses']){$(id+'Pane').classList.toggle('active',id===which);$('show'+id[0].toUpperCase()+id.slice(1)).classList.toggle('active',id===which)}}
 $('showTopup').onclick=()=>selectEconomyPane('topup');
 $('showBonuses').onclick=()=>selectEconomyPane('bonuses');
