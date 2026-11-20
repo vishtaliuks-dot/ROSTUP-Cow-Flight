@@ -190,6 +190,27 @@ async def telegram_webhook(request: Request, secret_token: Optional[str] = Heade
         await telegram('answerPreCheckoutQuery', answer)
         return {'ok': True}
     message = update.get('message') or update.get('edited_message') or {}
+    # Respond to ordinary bot commands. The Mini App server also acts as the Telegram bot webhook.
+    text = (message.get('text') or '').strip()
+    chat_id = (message.get('chat') or {}).get('id')
+    if chat_id and text.split(' ', 1)[0].split('@', 1)[0] in ('/start', '/help'):
+        if not PUBLIC_URL:
+            await telegram('sendMessage', {
+                'chat_id': chat_id,
+                'text': 'Бот запущен, но администратору нужно добавить PUBLIC_URL в Render → Environment.'
+            })
+        else:
+            await telegram('sendMessage', {
+                'chat_id': chat_id,
+                'text': '🐄 Добро пожаловать в ROSTUP Cow Flight! Нажми кнопку ниже, чтобы открыть игру.',
+                'reply_markup': {
+                    'inline_keyboard': [[{
+                        'text': '🚀 Открыть ROSTUP',
+                        'web_app': {'url': PUBLIC_URL}
+                    }]]
+                }
+            })
+        return {'ok': True}
     payment = message.get('successful_payment')
     if payment:
         payload = payment.get('invoice_payload', '')
