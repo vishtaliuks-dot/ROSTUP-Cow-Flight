@@ -277,12 +277,12 @@ async def cow_start(body: ArcadeStartRequest, request: Request):
     # 10% reaches 2.00x, and 2% reaches 5.00x. Repeats are possible.
     import random
     roll = random.random()
-    if roll < 0.02:
-        crash_multiplier = 5.00
-    elif roll < 0.12:
+    if roll < (1 / 20):
+        crash_multiplier = 3.00
+    elif roll < (1 / 20 + 1 / 7):
         crash_multiplier = 2.00
     else:
-        crash_multiplier = random.choice([1.10, 1.11, 1.12, 1.13])
+        crash_multiplier = round(random.uniform(1.10, 1.40), 2)
     crash_after = round((crash_multiplier - 1.0) / COW_MULTIPLIER_RATE, 4)
     state = {'crash_after': crash_after, 'crash_multiplier': crash_multiplier, 'started_at': now}
     with db() as c:
